@@ -8,7 +8,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    fn new(source: &str) -> Self {
+    pub fn new(source: String) -> Self {
         Self {
             chars: source.chars().collect(),
             start: 0,
@@ -36,7 +36,7 @@ impl Lexer {
     }
 
     fn get_lexeme(&self) -> String {
-        self.chars[self.current..self.start].iter().collect()
+        self.chars[self.start..self.current].iter().collect()
     }
 
     fn is_alpha(c: char) -> bool {
@@ -68,10 +68,10 @@ impl Lexer {
         }
     }
 
-    fn error_token(&self, message: String) -> Token {
+    fn error_token(&self, message: &str) -> Token {
         Token {
             token_type: TokenType::Error,
-            lexeme: message,
+            lexeme: message.to_string(),
             line: self.line
         }
     }
@@ -114,7 +114,7 @@ impl Lexer {
         self.make_token(TokenType::Number(num))
     }
 
-    fn scan_token(&mut self) -> Token {
+    pub fn scan_token(&mut self) -> Token {
         self.skip_whitespace(); 
         self.start = self.current;
 
@@ -125,7 +125,7 @@ impl Lexer {
         let c = self.advance();
 
         if Self::is_digit(c) {
-            self.number();
+            return self.number();
         }
 
         match c {
@@ -135,8 +135,78 @@ impl Lexer {
             '-' => self.make_token(TokenType::Minus),
             '*' => self.make_token(TokenType::Multiply),
             '/' => self.make_token(TokenType::Divide),
-            _ => self.make_token(TokenType::Error)
+            '^' => self.make_token(TokenType::Power),
+            _ => self.error_token("Unexpected token"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::token::{TokenType, Token};
+
+    fn lex_all(source: &str) -> Vec<Token> {
+        let mut lexer = Lexer::new(source.to_string());
+        let mut tokens = Vec::new();
+        loop {
+            let tok = lexer.scan_token();
+            tokens.push(tok.clone());
+            if matches!(tok.token_type, TokenType::EOF) {
+                break;
+            }
+        }
+        tokens
+    }
+
+    #[test]
+    fn test_simple_expression() {
+        let source = "1 + 2 * (3 - 4)";
+        let tokens = lex_all(source);
+
+        let expected = vec![
+            Token { token_type: TokenType::Number(1), lexeme: "1".to_string(), line: 1 },
+            Token { token_type: TokenType::Plus, lexeme: "+".to_string(), line: 1 },
+            Token { token_type: TokenType::Number(2), lexeme: "2".to_string(), line: 1 },
+            Token { token_type: TokenType::Multiply, lexeme: "*".to_string(), line: 1 },
+            Token { token_type: TokenType::LeftParen, lexeme: "(".to_string(), line: 1 },
+            Token { token_type: TokenType::Number(3), lexeme: "3".to_string(), line: 1 },
+            Token { token_type: TokenType::Minus, lexeme: "-".to_string(), line: 1 },
+            Token { token_type: TokenType::Number(4), lexeme: "4".to_string(), line: 1 },
+            Token { token_type: TokenType::RightParen, lexeme: ")".to_string(), line: 1 },
+            Token { token_type: TokenType::EOF, lexeme: "".to_string(), line: 1 },
+        ];
+
+        assert_eq!(tokens.len(), expected.len());
+        for (tok, exp) in tokens.iter().zip(expected.iter()) {
+            assert_eq!(tok.token_type, exp.token_type);
+            assert_eq!(tok.lexeme, exp.lexeme);
+            assert_eq!(tok.line, exp.line);
+        }
+    }
+
+    #[test]
+    fn test_whitespace_and_newlines() {
+        let source = " 1\n+ 2 ";
+        let tokens = lex_all(source);
+
+        assert_eq!(tokens[0].token_type, TokenType::Number(1));
+        assert_eq!(tokens[1].token_type, TokenType::Plus);
+        assert_eq!(tokens[2].token_type, TokenType::Number(2));
+        assert_eq!(tokens[3].token_type, TokenType::EOF);
+        assert_eq!(tokens[2].line, 2);
+    }
+
+    #[test]
+    fn test_comments() {
+        let source = "1 // this is a comment\n+ 2";
+        let tokens = lex_all(source);
+
+        assert_eq!(tokens[0].token_type, TokenType::Number(1));
+        assert_eq!(tokens[1].token_type, TokenType::Plus);
+        assert_eq!(tokens[2].token_type, TokenType::Number(2));
+        assert_eq!(tokens[3].token_type, TokenType::EOF);
+        assert_eq!(tokens[2].line, 2); 
     }
 }
 
