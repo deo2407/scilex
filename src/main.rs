@@ -4,18 +4,20 @@ use std::env;
 use std::io::Read;
 use std::fs::File;
 
+use crate::lexer::Lexer;
+
 mod lexer;
 mod token;
 mod parser;
 
-type Error = Box<dyn std::error::Error>;
-type Result<T> = std::result::Result<T, Error>;
+pub type Error = Box<dyn std::error::Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect(); 
 
     if args.len() != 2 {
-        println!("usage: {} FILENAME", args[0]);
+        return Err("usage: scilex FILENAME".into());
     }
 
     let filename = &args[1]; 
@@ -24,16 +26,12 @@ fn main() -> Result<()> {
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
 
-    let mut lx = lexer::Lexer::new(contents);
+    let tokens = Lexer::lex_all(contents); 
 
-    loop {
-        let token = lx.scan_token();
+    for token in tokens {
         println!("{:?}", token);
-
-        if token.token_type == token::TokenType::EOF {
-            break;
-        }
     }
 
     Ok(())
 }
+

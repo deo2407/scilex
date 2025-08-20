@@ -17,6 +17,47 @@ impl Lexer {
         }
     }
 
+    pub fn lex_all(source: String) -> Vec<Token> {
+        let mut lexer = Lexer::new(source.to_string());  
+        let mut tokens = Vec::new(); 
+
+        loop {
+            let token = lexer.scan_token();
+            tokens.push(token.clone());
+
+            if token.token_type == TokenType::EOF {
+                break;
+            }
+        }
+        tokens
+    }
+
+    pub fn scan_token(&mut self) -> Token {
+        self.skip_whitespace(); 
+        self.start = self.current;
+
+        if self.is_at_end() {
+            return self.make_token(TokenType::EOF);
+        }
+
+        let c = self.advance();
+
+        if Self::is_digit(c) {
+            return self.number();
+        }
+
+        match c {
+            '(' => self.make_token(TokenType::LeftParen),
+            ')' => self.make_token(TokenType::RightParen),
+            '+' => self.make_token(TokenType::Plus),
+            '-' => self.make_token(TokenType::Minus),
+            '*' => self.make_token(TokenType::Multiply),
+            '/' => self.make_token(TokenType::Divide),
+            '^' => self.make_token(TokenType::Power),
+            _ => self.error_token("Unexpected token"),
+        }
+    }
+
     fn is_at_end(&self) -> bool {
         self.current >= self.chars.len()
     }
@@ -113,32 +154,6 @@ impl Lexer {
 
         self.make_token(TokenType::Number(num))
     }
-
-    pub fn scan_token(&mut self) -> Token {
-        self.skip_whitespace(); 
-        self.start = self.current;
-
-        if self.is_at_end() {
-            return self.make_token(TokenType::EOF);
-        }
-
-        let c = self.advance();
-
-        if Self::is_digit(c) {
-            return self.number();
-        }
-
-        match c {
-            '(' => self.make_token(TokenType::LeftParen),
-            ')' => self.make_token(TokenType::RightParen),
-            '+' => self.make_token(TokenType::Plus),
-            '-' => self.make_token(TokenType::Minus),
-            '*' => self.make_token(TokenType::Multiply),
-            '/' => self.make_token(TokenType::Divide),
-            '^' => self.make_token(TokenType::Power),
-            _ => self.error_token("Unexpected token"),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -146,23 +161,10 @@ mod tests {
     use super::*;
     use crate::token::{TokenType, Token};
 
-    fn lex_all(source: &str) -> Vec<Token> {
-        let mut lexer = Lexer::new(source.to_string());
-        let mut tokens = Vec::new();
-        loop {
-            let tok = lexer.scan_token();
-            tokens.push(tok.clone());
-            if matches!(tok.token_type, TokenType::EOF) {
-                break;
-            }
-        }
-        tokens
-    }
-
     #[test]
     fn test_simple_expression() {
-        let source = "1 + 2 * (3 - 4)";
-        let tokens = lex_all(source);
+        let source = "1 + 2 * (3 - 4)".to_string();
+        let tokens = Lexer::lex_all(source);
 
         let expected = vec![
             Token { token_type: TokenType::Number(1), lexeme: "1".to_string(), line: 1 },
@@ -187,8 +189,8 @@ mod tests {
 
     #[test]
     fn test_whitespace_and_newlines() {
-        let source = " 1\n+ 2 ";
-        let tokens = lex_all(source);
+        let source = " 1\n+ 2 ".to_string();
+        let tokens = Lexer::lex_all(source);
 
         assert_eq!(tokens[0].token_type, TokenType::Number(1));
         assert_eq!(tokens[1].token_type, TokenType::Plus);
@@ -199,8 +201,8 @@ mod tests {
 
     #[test]
     fn test_comments() {
-        let source = "1 // this is a comment\n+ 2";
-        let tokens = lex_all(source);
+        let source = "1 // this is a comment\n+ 2".to_string();
+        let tokens = Lexer::lex_all(source);
 
         assert_eq!(tokens[0].token_type, TokenType::Number(1));
         assert_eq!(tokens[1].token_type, TokenType::Plus);
