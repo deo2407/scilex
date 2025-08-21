@@ -5,6 +5,7 @@ use std::io::Read;
 use std::fs::File;
 
 use crate::lexer::Lexer;
+use crate::parser::Parser;
 
 mod lexer;
 mod token;
@@ -28,9 +29,11 @@ fn main() -> Result<()> {
 
     let tokens = Lexer::lex_all(contents); 
 
-    for token in tokens {
-        println!("{:?}", token);
-    }
+    let mut p = Parser::new(tokens);
+    let expr = p.parse_expr()?;
+
+    println!("{}", expr);  
+    println!("{}", expr.eval());  
 
     Ok(())
 }

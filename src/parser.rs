@@ -4,11 +4,39 @@ use crate::lexer::Lexer;
 use crate::token::*;
 
 #[derive(Debug)]
-enum Expr {
+pub enum Expr {
     Number(i64),
     Unary { op: TokenType, rhs: Box<Expr> },
     Binary { lhs: Box<Expr>, op: TokenType, rhs: Box<Expr> },
     Grouping(Box<Expr>),
+}
+
+impl Expr {
+    pub fn eval(&self) -> i64 {
+        match self {
+            Expr::Number(n) => *n,
+            Expr::Binary { lhs, op, rhs } => {
+                let left = lhs.eval();
+                let right = rhs.eval();
+                match op {
+                    TokenType::Plus => left + right,
+                    TokenType::Minus => left - right,
+                    TokenType::Multiply => left * right,
+                    TokenType::Divide => left / right,
+                    TokenType::Power => left.pow(right.try_into().unwrap()),
+                    _ => panic!("Unsupported binary operator")
+                }
+            },
+            Expr::Unary {op, rhs} => {
+                let val = rhs.eval();
+                match op {
+                    TokenType::Minus => -val,
+                    _ => panic!("Unsupported unary operator")
+                }
+            },
+            Expr::Grouping(inner) => inner.eval(),
+        } 
+    }
 }
 
 impl fmt::Display for Expr {
@@ -22,9 +50,9 @@ impl fmt::Display for Expr {
     }
 }
 
-struct Parser {
-    pub tokens: Vec<Token>,
-    pub current: usize,
+pub struct Parser {
+    tokens: Vec<Token>,
+    current: usize,
 }
 
 impl Parser {
@@ -49,11 +77,12 @@ impl Parser {
                 self.consume(TokenType::RightParen, "Expect ')' after expression")?;
                 Expr::Grouping(Box::new(expr))
             },
-            TokenType::Minus => {
-                let rhs = self.parse_expr_bp(9.0)?;
-                Expr::Unary { op: token.token_type.clone(), rhs:  Box::new(rhs)}
+            TokenType::Minus | TokenType::Plus => {
+                let ((), r_bp) = Self::prefix_bindind_power(&token.token_type);
+                let rhs = self.parse_expr_bp(r_bp)?;
+                Expr::Unary { op: token.token_type.clone(), rhs: Box::new(rhs)}
             }
-            t => return Err(format!("[line {}] Unexpected token '{}' in expression", token.line, t))
+            t => return Self::report_unexpected_token(&token),
         };
 
         loop {
@@ -61,11 +90,7 @@ impl Parser {
                 Some(op) => op,
                 None => match &self.peek().token_type {
                     TokenType::EOF | TokenType::RightParen => break,
-                    _ => return Err(format!(
-                        "[line {}] Unexpected token '{}' in expression",
-                        self.peek().line,
-                        self.peek().lexeme,
-                    )),
+                    _ => return Self::report_unexpected_token(self.peek()),
                 },
             };
 
@@ -82,20 +107,39 @@ impl Parser {
                     rhs: Box::new(rhs),
                 };
                 continue;
-            };
+            } else {
+                return Self::report_unexpected_token(self.advance()); 
+            }
             break;
         }
 
         Ok(lhs)
+    }
+    
+    fn prefix_bindind_power(op: &TokenType) -> ((), f32) {
+        let res = match op {
+            TokenType::Plus | TokenType::Minus => ((), 9.0),
+            _ =>  panic!("bad token '{}'", op),
+        };
+        res
     }
 
     fn infix_binding_power(op: &TokenType) -> Option<(f32, f32)> {
         let res = match op {
             TokenType::Plus | TokenType::Minus => (1.0, 1.1),
             TokenType::Multiply | TokenType::Divide => (2.0, 2.1),
+            TokenType::Power => (4.1, 4.0),
             _ => return None,
         };
         Some(res)
+    }
+
+    fn report_unexpected_token(token: &Token) -> Result<Expr, String> {
+        Err(format!(
+            "[line {}] Unexpected token {}",
+            token.line,
+            token.lexeme
+        ))
     }
 
     fn match_operator(&mut self) -> Option<TokenType> {
@@ -103,7 +147,8 @@ impl Parser {
             TokenType::Plus
             | TokenType::Minus
             | TokenType::Multiply
-            | TokenType::Divide => {
+            | TokenType::Divide
+            | TokenType::Power => {
                 let tok = self.peek().token_type.clone();
                 Some(tok)
             }
@@ -272,6 +317,26 @@ mod tests {
         let expr = p.parse_expr().unwrap();
 
         assert_eq!(expr.to_string(), "(* (group (+ 1 2)) 3)")
+    }
+
+    #[test]
+    fn check_power_precedence() {
+        let tokens = Lexer::lex_all("2 ^ 3 * 3".to_string());
+
+        let mut p = Parser::new(tokens); 
+        let expr = p.parse_expr().unwrap();
+
+        assert_eq!(expr.to_string(), "(* (^ 2 3) 3)")
+    }
+
+    #[test]
+    fn check_eval () {
+        let tokens = Lexer::lex_all("2 ^ 3 * 3".to_string());
+
+        let mut p = Parser::new(tokens); 
+        let expr = p.parse_expr().unwrap();
+
+        assert_eq!(expr.eval(), 24)
     }
 }
 
