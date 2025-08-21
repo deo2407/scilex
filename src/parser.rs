@@ -5,14 +5,14 @@ use crate::token::*;
 
 #[derive(Debug)]
 pub enum Expr {
-    Number(i64),
+    Number(f64),
     Unary { op: TokenType, rhs: Box<Expr> },
     Binary { lhs: Box<Expr>, op: TokenType, rhs: Box<Expr> },
     Grouping(Box<Expr>),
 }
 
 impl Expr {
-    pub fn eval(&self) -> i64 {
+    pub fn eval(&self) -> f64 {
         match self {
             Expr::Number(n) => *n,
             Expr::Binary { lhs, op, rhs } => {
@@ -23,7 +23,7 @@ impl Expr {
                     TokenType::Minus => left - right,
                     TokenType::Multiply => left * right,
                     TokenType::Divide => left / right,
-                    TokenType::Power => left.pow(right.try_into().unwrap()),
+                    TokenType::Power => left.powf(right.try_into().unwrap()),
                     _ => panic!("Unsupported binary operator")
                 }
             },
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn display_number() {
-        let expr = Expr::Number(53); 
+        let expr = Expr::Number(53.0); 
         assert_eq!(expr.to_string(), "53");
     }
 
@@ -204,7 +204,7 @@ mod tests {
     fn display_unary() {
         let expr = Expr::Unary { 
             op: TokenType::Minus, 
-            rhs: Box::new(Expr::Number(43)),
+            rhs: Box::new(Expr::Number(43.0)),
         };
         assert_eq!(expr.to_string(), "-43");
     }
@@ -212,9 +212,9 @@ mod tests {
     #[test]
     fn display_binary() {
         let expr = Expr::Binary { 
-            lhs: Box::new(Expr::Number(72)),
+            lhs: Box::new(Expr::Number(72.0)),
             op: TokenType::Plus, 
-            rhs: Box::new(Expr::Number(43)),
+            rhs: Box::new(Expr::Number(43.0)),
         };
         assert_eq!(expr.to_string(), "(+ 72 43)");
     }
@@ -225,14 +225,14 @@ mod tests {
         // ( * (group (+ 1 2)) -3)
         let expr = Expr::Binary {
             lhs: Box::new(Expr::Grouping(Box::new(Expr::Binary {
-                lhs: Box::new(Expr::Number(1)),
+                lhs: Box::new(Expr::Number(1.0)),
                 op: TokenType::Plus,
-                rhs: Box::new(Expr::Number(2)),
+                rhs: Box::new(Expr::Number(2.0)),
             }))),
             op: TokenType::Multiply,
             rhs: Box::new(Expr::Unary {
                 op: TokenType::Minus,
-                rhs: Box::new(Expr::Number(3)),
+                rhs: Box::new(Expr::Number(3.0)),
             }),
         };
 
@@ -320,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn check_power_precedence() {
+    fn pares_power_precedence() {
         let tokens = Lexer::lex_all("2 ^ 3 * 3".to_string());
 
         let mut p = Parser::new(tokens); 
@@ -330,13 +330,23 @@ mod tests {
     }
 
     #[test]
-    fn check_eval () {
+    fn eval_power() {
         let tokens = Lexer::lex_all("2 ^ 3 * 3".to_string());
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr().unwrap();
 
-        assert_eq!(expr.eval(), 24)
+        assert_eq!(expr.eval(), 24.0)
+    }
+
+    #[test]
+    fn eval_float() {
+        let tokens = Lexer::lex_all("4.5 * 3".to_string());
+
+        let mut p = Parser::new(tokens);
+        let expr = p.parse_expr().unwrap();
+
+        assert_eq!(expr.eval(), 13.5);
     }
 }
 

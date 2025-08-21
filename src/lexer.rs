@@ -58,49 +58,6 @@ impl Lexer {
         }
     }
 
-    fn is_at_end(&self) -> bool {
-        self.current >= self.chars.len()
-    }
-
-    fn advance(&mut self) -> char {
-        let ch = self.chars[self.current]; 
-        self.current += 1;
-        ch
-    }
-
-    fn peek(&self) -> Option<char> {
-        self.chars.get(self.current).copied()
-    }
-
-    fn peek_next(&self) -> Option<char> {
-        self.chars.get(self.current + 1).copied()
-    }
-
-    fn get_lexeme(&self) -> String {
-        self.chars[self.start..self.current].iter().collect()
-    }
-
-    fn is_alpha(c: char) -> bool {
-        (c >= 'a' && c <= 'z') | (c >= 'A' && c <= 'Z')
-    }
-
-    fn is_digit(c: char) -> bool {
-        c >= '0' && c <= '9'
-    }
-
-    fn match_char(&mut self, expect: char) -> bool {
-        if self.is_at_end() {
-            return false;
-        }
-
-        if self.chars[self.current] != expect {
-            return false;
-        }
-        self.current += 1;
-
-        true
-    }
-
     fn make_token(&self, token_type: TokenType) -> Token {
         Token {
             token_type,
@@ -147,12 +104,60 @@ impl Lexer {
     fn number(&mut self) -> Token {
         while Self::is_digit(self.peek().unwrap_or(' ')) { self.advance(); }
 
+        if self.peek().unwrap_or(' ') == '.' {
+            self.advance();
+            while Self::is_digit(self.peek().unwrap_or(' ')) { self.advance(); }
+        }
+
         let num_str = self.chars[self.start..self.current]
             .iter()
             .collect::<String>();
-        let num: i64 = num_str.parse().unwrap();
+        let num: f64 = num_str.parse().unwrap();
 
         self.make_token(TokenType::Number(num))
+    }
+
+    fn match_char(&mut self, expect: char) -> bool {
+        if self.is_at_end() {
+            return false;
+        }
+
+        if self.chars[self.current] != expect {
+            return false;
+        }
+        self.current += 1;
+
+        true
+    }
+
+    fn is_at_end(&self) -> bool {
+        self.current >= self.chars.len()
+    }
+
+    fn advance(&mut self) -> char {
+        let ch = self.chars[self.current]; 
+        self.current += 1;
+        ch
+    }
+
+    fn peek(&self) -> Option<char> {
+        self.chars.get(self.current).copied()
+    }
+
+    fn peek_next(&self) -> Option<char> {
+        self.chars.get(self.current + 1).copied()
+    }
+
+    fn get_lexeme(&self) -> String {
+        self.chars[self.start..self.current].iter().collect()
+    }
+
+    fn is_alpha(c: char) -> bool {
+        (c >= 'a' && c <= 'z') | (c >= 'A' && c <= 'Z')
+    }
+
+    fn is_digit(c: char) -> bool {
+        c >= '0' && c <= '9'
     }
 }
 
@@ -162,19 +167,19 @@ mod tests {
     use crate::token::{TokenType, Token};
 
     #[test]
-    fn test_simple_expression() {
+    fn lex_simple_expression() {
         let source = "1 + 2 * (3 - 4)".to_string();
         let tokens = Lexer::lex_all(source);
 
         let expected = vec![
-            Token { token_type: TokenType::Number(1), lexeme: "1".to_string(), line: 1 },
+            Token { token_type: TokenType::Number(1.0), lexeme: "1".to_string(), line: 1 },
             Token { token_type: TokenType::Plus, lexeme: "+".to_string(), line: 1 },
-            Token { token_type: TokenType::Number(2), lexeme: "2".to_string(), line: 1 },
+            Token { token_type: TokenType::Number(2.0), lexeme: "2".to_string(), line: 1 },
             Token { token_type: TokenType::Multiply, lexeme: "*".to_string(), line: 1 },
             Token { token_type: TokenType::LeftParen, lexeme: "(".to_string(), line: 1 },
-            Token { token_type: TokenType::Number(3), lexeme: "3".to_string(), line: 1 },
+            Token { token_type: TokenType::Number(3.0), lexeme: "3".to_string(), line: 1 },
             Token { token_type: TokenType::Minus, lexeme: "-".to_string(), line: 1 },
-            Token { token_type: TokenType::Number(4), lexeme: "4".to_string(), line: 1 },
+            Token { token_type: TokenType::Number(4.0), lexeme: "4".to_string(), line: 1 },
             Token { token_type: TokenType::RightParen, lexeme: ")".to_string(), line: 1 },
             Token { token_type: TokenType::EOF, lexeme: "".to_string(), line: 1 },
         ];
@@ -188,27 +193,35 @@ mod tests {
     }
 
     #[test]
-    fn test_whitespace_and_newlines() {
+    fn lex_whitespace_and_newlines() {
         let source = " 1\n+ 2 ".to_string();
         let tokens = Lexer::lex_all(source);
 
-        assert_eq!(tokens[0].token_type, TokenType::Number(1));
+        assert_eq!(tokens[0].token_type, TokenType::Number(1.0));
         assert_eq!(tokens[1].token_type, TokenType::Plus);
-        assert_eq!(tokens[2].token_type, TokenType::Number(2));
+        assert_eq!(tokens[2].token_type, TokenType::Number(2.0));
         assert_eq!(tokens[3].token_type, TokenType::EOF);
         assert_eq!(tokens[2].line, 2);
     }
 
     #[test]
-    fn test_comments() {
+    fn lex_comments() {
         let source = "1 // this is a comment\n+ 2".to_string();
         let tokens = Lexer::lex_all(source);
 
-        assert_eq!(tokens[0].token_type, TokenType::Number(1));
+        assert_eq!(tokens[0].token_type, TokenType::Number(1.0));
         assert_eq!(tokens[1].token_type, TokenType::Plus);
-        assert_eq!(tokens[2].token_type, TokenType::Number(2));
+        assert_eq!(tokens[2].token_type, TokenType::Number(2.0));
         assert_eq!(tokens[3].token_type, TokenType::EOF);
         assert_eq!(tokens[2].line, 2); 
+    }
+
+    #[test]
+    fn lex_float() {
+        let source = "1.321".to_string();
+        let tokens = Lexer::lex_all(source);
+
+        assert_eq!(tokens[0].token_type, TokenType::Number(1.321));
     }
 }
 

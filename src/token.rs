@@ -2,7 +2,7 @@ use std::fmt;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
-    Number(i64),
+    Number(f64),
     Identifier(String),
     String(String),
 
