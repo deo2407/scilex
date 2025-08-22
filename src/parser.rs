@@ -68,7 +68,8 @@ impl Parser {
     }
 
     fn parse_expr_bp(&mut self, min_bp: f32) -> Result<Expr, String> {
-        let token = self.advance().clone();
+        let token = self.advance();
+        let token_type = token.token_type;
 
         let mut lhs = match &token.token_type {
             TokenType::Number(n) => Expr::Number(*n),
@@ -80,8 +81,8 @@ impl Parser {
             TokenType::Minus | TokenType::Plus => {
                 let ((), r_bp) = Self::prefix_bindind_power(&token.token_type);
                 let rhs = self.parse_expr_bp(r_bp)?;
-                Expr::Unary { op: token.token_type.clone(), rhs: Box::new(rhs)}
-            }
+                Expr::Unary { op: token_type, rhs: Box::new(rhs)}
+            },
             t => return Self::report_unexpected_token(&token),
         };
 
@@ -320,7 +321,7 @@ mod tests {
     }
 
     #[test]
-    fn pares_power_precedence() {
+    fn parse_power_precedence() {
         let tokens = Lexer::lex_all("2 ^ 3 * 3".to_string());
 
         let mut p = Parser::new(tokens); 

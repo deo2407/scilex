@@ -1,19 +1,20 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum TokenType {
     Number(f64),
-    Identifier(String),
-    String(String),
+    Identifier,
+    String,
 
     Plus, Minus, Multiply, Divide, Power,
     Less, Greater, Equal,
     LessEq, GreaterEq, EqualEq, BangEq,
     LeftParen, RightParen,
 
+    Let,
     If, Else, While, For, 
     Fn, Return,
-    Set,
+    NewLine,
     NIL,
     EOF,
 

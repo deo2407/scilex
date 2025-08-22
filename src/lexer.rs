@@ -8,7 +8,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(source: String) -> Self {
+    fn new(source: String) -> Self {
         Self {
             chars: source.chars().collect(),
             start: 0,
@@ -32,7 +32,7 @@ impl Lexer {
         tokens
     }
 
-    pub fn scan_token(&mut self) -> Token {
+    fn scan_token(&mut self) -> Token {
         self.skip_whitespace(); 
         self.start = self.current;
 
