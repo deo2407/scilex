@@ -18,7 +18,7 @@ impl Lexer {
     }
 
     pub fn lex_all(source: String) -> Result<Vec<Token>, String> {
-        let mut lexer = Lexer::new(source.to_string());  
+        let mut lexer = Lexer::new(source);  
         let mut tokens = Vec::new(); 
 
         loop {
