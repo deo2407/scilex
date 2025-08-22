@@ -1,6 +1,5 @@
 use std::fmt;
 
-use crate::lexer::Lexer;
 use crate::token::*;
 
 #[derive(Debug)]
@@ -24,6 +23,12 @@ impl Expr {
                     TokenType::Multiply => left * right,
                     TokenType::Divide => left / right,
                     TokenType::Power => left.powf(right.try_into().unwrap()),
+                    TokenType::EqualEq => (left == right) as u8 as f64,
+                    TokenType::BangEq => (left != right) as u8 as f64,
+                    TokenType::Greater => (left > right) as u8 as f64,
+                    TokenType::GreaterEq => (left >= right) as u8 as f64,
+                    TokenType::Less => (left < right) as u8 as f64,
+                    TokenType::LessEq => (left <= right) as u8 as f64,
                     _ => panic!("Unsupported binary operator")
                 }
             },
@@ -83,7 +88,7 @@ impl Parser {
                 let rhs = self.parse_expr_bp(r_bp)?;
                 Expr::Unary { op: token_type, rhs: Box::new(rhs)}
             },
-            t => return Self::report_unexpected_token(&token),
+            _ => return Self::report_unexpected_token(&token),
         };
 
         loop {
@@ -111,7 +116,6 @@ impl Parser {
             } else {
                 return Self::report_unexpected_token(self.advance()); 
             }
-            break;
         }
 
         Ok(lhs)
@@ -127,6 +131,8 @@ impl Parser {
 
     fn infix_binding_power(op: &TokenType) -> Option<(f32, f32)> {
         let res = match op {
+            TokenType::EqualEq | TokenType::BangEq => (0.5, 0.6), 
+            TokenType::Less | TokenType::LessEq | TokenType::Greater | TokenType::GreaterEq => (0.7, 0.8),
             TokenType::Plus | TokenType::Minus => (1.0, 1.1),
             TokenType::Multiply | TokenType::Divide => (2.0, 2.1),
             TokenType::Power => (4.1, 4.0),
@@ -149,7 +155,13 @@ impl Parser {
             | TokenType::Minus
             | TokenType::Multiply
             | TokenType::Divide
-            | TokenType::Power => {
+            | TokenType::Power
+            | TokenType::EqualEq 
+            | TokenType::BangEq 
+            | TokenType::Greater 
+            | TokenType::GreaterEq
+            | TokenType::Less
+            | TokenType::LessEq => {
                 let tok = self.peek().token_type.clone();
                 Some(tok)
             }
@@ -242,7 +254,7 @@ mod tests {
 
     #[test]
     fn parse_expr_add() {
-        let tokens = Lexer::lex_all("1 + 2".to_string());
+        let tokens = Lexer::lex_all("1 + 2".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr().unwrap();
@@ -251,7 +263,7 @@ mod tests {
 
     #[test]
     fn parse_expr_mul() {
-        let tokens = Lexer::lex_all("41 * 2".to_string());
+        let tokens = Lexer::lex_all("41 * 2".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr().unwrap();
@@ -260,7 +272,7 @@ mod tests {
 
     #[test]
     fn parse_expr_mul_error() {
-        let tokens = Lexer::lex_all("* 41".to_string());
+        let tokens = Lexer::lex_all("* 41".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr();
@@ -271,7 +283,7 @@ mod tests {
 
     #[test]
     fn parse_expr_unary() {
-        let tokens = Lexer::lex_all("- 41".to_string());
+        let tokens = Lexer::lex_all("- 41".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr().unwrap();
@@ -281,7 +293,7 @@ mod tests {
 
     #[test]
     fn parse_expr_unary_nested() {
-        let tokens = Lexer::lex_all("- (31 + 12 + 13)".to_string());
+        let tokens = Lexer::lex_all("- (31 + 12 + 13)".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr().unwrap();
@@ -291,7 +303,7 @@ mod tests {
 
     #[test]
     fn parse_expr_unary_nested_bracket_err() {
-        let tokens = Lexer::lex_all("- (31 + 12 + 13".to_string());
+        let tokens = Lexer::lex_all("- (31 + 12 + 13".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr();
@@ -302,7 +314,7 @@ mod tests {
 
     #[test]
     fn parse_precedence() {
-        let tokens = Lexer::lex_all("1 + 2 * 3".to_string());
+        let tokens = Lexer::lex_all("1 + 2 * 3".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr().unwrap();
@@ -312,7 +324,7 @@ mod tests {
 
     #[test]
     fn parse_parentheses() {
-        let tokens = Lexer::lex_all("(1 + 2) * 3".to_string());
+        let tokens = Lexer::lex_all("(1 + 2) * 3".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr().unwrap();
@@ -322,7 +334,7 @@ mod tests {
 
     #[test]
     fn parse_power_precedence() {
-        let tokens = Lexer::lex_all("2 ^ 3 * 3".to_string());
+        let tokens = Lexer::lex_all("2 ^ 3 * 3".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr().unwrap();
@@ -332,7 +344,7 @@ mod tests {
 
     #[test]
     fn eval_power() {
-        let tokens = Lexer::lex_all("2 ^ 3 * 3".to_string());
+        let tokens = Lexer::lex_all("2 ^ 3 * 3".to_string()).unwrap();
 
         let mut p = Parser::new(tokens); 
         let expr = p.parse_expr().unwrap();
@@ -342,12 +354,42 @@ mod tests {
 
     #[test]
     fn eval_float() {
-        let tokens = Lexer::lex_all("4.5 * 3".to_string());
+        let tokens = Lexer::lex_all("4.5 * 3".to_string()).unwrap();
 
         let mut p = Parser::new(tokens);
         let expr = p.parse_expr().unwrap();
 
         assert_eq!(expr.eval(), 13.5);
+    }
+
+    #[test]
+    fn eval_not_equal() {
+        let tokens = Lexer::lex_all("4.5 != 3".to_string()).unwrap();
+
+        let mut p = Parser::new(tokens);
+        let expr = p.parse_expr().unwrap();
+
+        assert_eq!(expr.eval(), 1.0);
+    }
+
+    #[test]
+    fn eval_greater_equal() {
+        let tokens = Lexer::lex_all("54.5 >= 3.89".to_string()).unwrap();
+
+        let mut p = Parser::new(tokens);
+        let expr = p.parse_expr().unwrap();
+
+        assert_eq!(expr.eval(), 1.0);
+    }
+
+    #[test]
+    fn eval_less_nested() {
+        let tokens = Lexer::lex_all("10 ^ 3 / 5 < 7 * 200".to_string()).unwrap();
+
+        let mut p = Parser::new(tokens);
+        let expr = p.parse_expr().unwrap();
+
+        assert_eq!(expr.eval(), 1.0);
     }
 }
 

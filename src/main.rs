@@ -1,9 +1,5 @@
-#![allow(unused, dead_code)]
 
-use std::env;
-use std::io::{self, Read, prelude::*};
-
-use std::fs::File;
+use std::io::{self, prelude::*};
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -30,7 +26,13 @@ fn main() -> Result<()> {
             break;
         }
 
-        let tokens = Lexer::lex_all(contents); 
+        let tokens = match Lexer::lex_all(contents) {
+            Ok(tokens) => tokens,
+            Err(e) => {
+                eprintln!("Lexing error: {e}");
+                continue;
+            }
+        };
 
         let mut p = Parser::new(tokens);
         let expr = p.parse_expr()?;

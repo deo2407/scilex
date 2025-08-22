@@ -17,22 +17,22 @@ impl Lexer {
         }
     }
 
-    pub fn lex_all(source: String) -> Vec<Token> {
+    pub fn lex_all(source: String) -> Result<Vec<Token>, String> {
         let mut lexer = Lexer::new(source.to_string());  
         let mut tokens = Vec::new(); 
 
         loop {
-            let token = lexer.scan_token();
+            let token = lexer.scan_token()?;
             tokens.push(token.clone());
 
             if token.token_type == TokenType::EOF {
                 break;
             }
         }
-        tokens
+        Ok(tokens)
     }
 
-    fn scan_token(&mut self) -> Token {
+    fn scan_token(&mut self) -> Result<Token, String> {
         self.skip_whitespace(); 
         self.start = self.current;
 
@@ -54,24 +54,40 @@ impl Lexer {
             '*' => self.make_token(TokenType::Multiply),
             '/' => self.make_token(TokenType::Divide),
             '^' => self.make_token(TokenType::Power),
-            _ => self.error_token("Unexpected token"),
+            '<' => {
+                if self.match_char('=') {
+                    return self.make_token(TokenType::LessEq);
+                }
+                self.make_token(TokenType::Less)
+            },
+            '>' => {
+                if self.match_char('=') {
+                    return self.make_token(TokenType::GreaterEq);
+                }
+                self.make_token(TokenType::Greater)
+            },
+            '!' => {
+                if self.match_char('=') {
+                    return self.make_token(TokenType::BangEq);
+                }
+                Err(format!("Unknow token {c}"))
+            },
+            '=' => {
+                if self.match_char('=') {
+                    return self.make_token(TokenType::EqualEq);
+                }
+                Err(format!("Unknow token {c}"))
+            },
+            _ => return Err(format!("Unknow token {c}")),
         }
     }
 
-    fn make_token(&self, token_type: TokenType) -> Token {
-        Token {
+    fn make_token(&self, token_type: TokenType) -> Result<Token, String> {
+        Ok(Token {
             token_type,
             lexeme: self.get_lexeme(),
             line: self.line,
-        }
-    }
-
-    fn error_token(&self, message: &str) -> Token {
-        Token {
-            token_type: TokenType::Error,
-            lexeme: message.to_string(),
-            line: self.line
-        }
+        })
     }
 
     fn skip_whitespace(&mut self) {
@@ -101,7 +117,7 @@ impl Lexer {
         } 
     }
 
-    fn number(&mut self) -> Token {
+    fn number(&mut self) -> Result<Token, String> {
         while Self::is_digit(self.peek().unwrap_or(' ')) { self.advance(); }
 
         if self.peek().unwrap_or(' ') == '.' {
@@ -152,10 +168,6 @@ impl Lexer {
         self.chars[self.start..self.current].iter().collect()
     }
 
-    fn is_alpha(c: char) -> bool {
-        (c >= 'a' && c <= 'z') | (c >= 'A' && c <= 'Z')
-    }
-
     fn is_digit(c: char) -> bool {
         c >= '0' && c <= '9'
     }
@@ -169,7 +181,7 @@ mod tests {
     #[test]
     fn lex_simple_expression() {
         let source = "1 + 2 * (3 - 4)".to_string();
-        let tokens = Lexer::lex_all(source);
+        let tokens = Lexer::lex_all(source).unwrap();
 
         let expected = vec![
             Token { token_type: TokenType::Number(1.0), lexeme: "1".to_string(), line: 1 },
@@ -195,7 +207,7 @@ mod tests {
     #[test]
     fn lex_whitespace_and_newlines() {
         let source = " 1\n+ 2 ".to_string();
-        let tokens = Lexer::lex_all(source);
+        let tokens = Lexer::lex_all(source).unwrap();
 
         assert_eq!(tokens[0].token_type, TokenType::Number(1.0));
         assert_eq!(tokens[1].token_type, TokenType::Plus);
@@ -207,7 +219,7 @@ mod tests {
     #[test]
     fn lex_comments() {
         let source = "1 // this is a comment\n+ 2".to_string();
-        let tokens = Lexer::lex_all(source);
+        let tokens = Lexer::lex_all(source).unwrap();
 
         assert_eq!(tokens[0].token_type, TokenType::Number(1.0));
         assert_eq!(tokens[1].token_type, TokenType::Plus);
@@ -219,9 +231,20 @@ mod tests {
     #[test]
     fn lex_float() {
         let source = "1.321".to_string();
-        let tokens = Lexer::lex_all(source);
+        let tokens = Lexer::lex_all(source).unwrap();
 
         assert_eq!(tokens[0].token_type, TokenType::Number(1.321));
+    }
+
+    #[test]
+    fn lex_double_char_tokens() {
+        let source = ">= <= != ==".to_string();
+        let tokens = Lexer::lex_all(source).unwrap();
+
+        assert_eq!(tokens[0].token_type, TokenType::GreaterEq);
+        assert_eq!(tokens[1].token_type, TokenType::LessEq);
+        assert_eq!(tokens[2].token_type, TokenType::BangEq);
+        assert_eq!(tokens[3].token_type, TokenType::EqualEq);
     }
 }
 

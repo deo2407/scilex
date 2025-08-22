@@ -7,7 +7,7 @@ This is a learning project intended to understand **Pratt Parsers** and how to b
 ###  What is this?
 Scilex is a toy programming language project.  
 At its core it currently:
-- Takes mathematical expressions as input
+- Takes mathematical expressions as input (+, -, *, /, ==, !=, >, <, >=, <=)
 - Uses a Pratt Parser to generate an Abstract Syntax Tree (AST)
 - Evaluates expressions to produce results
 
