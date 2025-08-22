@@ -14,7 +14,7 @@ At its core it currently:
 
 Example:
 ```bash
-4 - 5 - (2 ^ 3 * 2) / 4
+> 4 - 5 - (2 ^ 3 * 2) / 4
 ```
 
 Produces AST: 
