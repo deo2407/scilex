@@ -1,7 +1,8 @@
 #![allow(unused, dead_code)]
 
 use std::env;
-use std::io::Read;
+use std::io::{self, Read, prelude::*};
+
 use std::fs::File;
 
 use crate::lexer::Lexer;
@@ -15,25 +16,28 @@ pub type Error = Box<dyn std::error::Error>;
 pub type Result<T> = std::result::Result<T, Error>;
 
 fn main() -> Result<()> {
-    let args: Vec<String> = env::args().collect(); 
+    loop {
+        print!("> ");
+        io::stdout().flush()?;
+        
+        let mut contents = String::new();
+        io::stdin().read_line(&mut contents)?;
+        let contents = contents.trim().to_string();
 
-    if args.len() != 2 {
-        return Err("usage: scilex FILENAME".into());
+        if contents.is_empty() {
+            continue;
+        } else if contents == "exit" || contents == "quit" {
+            break;
+        }
+
+        let tokens = Lexer::lex_all(contents); 
+
+        let mut p = Parser::new(tokens);
+        let expr = p.parse_expr()?;
+
+        println!("{}", expr);  
+        println!("{}", expr.eval());  
     }
-
-    let filename = &args[1]; 
-    let mut file = File::open(filename)?;     
-
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-
-    let tokens = Lexer::lex_all(contents); 
-
-    let mut p = Parser::new(tokens);
-    let expr = p.parse_expr()?;
-
-    println!("{}", expr);  
-    println!("{}", expr.eval());  
 
     Ok(())
 }
